@@ -62,7 +62,7 @@ class BillerRecord(models.Model):
             'name' : "Obtener comprobantes {}".format(datetime.now().strftime("%d/%m/%Y %H:%M")),
             'document_type' : 'cfe_received',
             'payload' : payload,
-            'response' : data if bool(data) else "No hubo comprobantes en el rango especificado de {date_from} a {date_to}".fromat(),
+            'response' : data if bool(data) else "No hubo comprobantes en el rango especificado de {} a {}".format(date_from, date_to),
             'response_date' : fields.Date.today()
         })
 

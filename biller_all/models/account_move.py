@@ -30,12 +30,19 @@ class AccountMove(models.Model):
         string = "CFEs asociadas",
         copy=False,
     )
-
-    def send_and_print_action(self):
-        res = super().send_and_print_action()
-
+## 41931060
     def action_post(self):
+        moves_with_payments = self.filtered('payment_id')
+        other_moves = self - moves_with_payments
+        if moves_with_payments:
+            moves_with_payments.payment_id.action_post()
+        if other_moves:
+            other_moves._post(soft=False)
+        return False
+
+    def _post(self, soft=True):
         if self.move_type in ('out_invoice','out_refund'):
+            self.validate_fields()
             biller_proxy = self.env['biller.record']
             document_type = CODES[self.move_type]
             exchange_rate = self.currency_id.rate_ids.filtered(lambda r: r.company_id == self.company_id).rate if self.currency_id.name != 'UYU' else 1
@@ -73,7 +80,12 @@ class AccountMove(models.Model):
                     'name' : eval(data.decode())["serie"] + "-" + str(eval(data.decode())["numero"]),
                     'biller_id' : eval(data.decode())["id"]
                 })
-                return super().action_post()
+                return super()._post(soft)
+
+    def validate_fields(self):
+        if not self.invoice_date:
+            raise ValidationError("Es necesario ingresar fecha de emision")
+        return
     
     def get_items(self):
         items=[]
@@ -105,8 +117,8 @@ class AccountMove(models.Model):
     
     def get_references(self):
         references=[]
-        if self.associated_move_ids:
-            references.append(self.associated_move_ids.biller_id)
+        if self.reversed_entry_id:
+            references.append(self.reversed_entry_id.biller_id)
         return references
         
 
