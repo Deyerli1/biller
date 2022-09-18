@@ -80,8 +80,6 @@ class AccountMove(models.Model):
                     'biller_id' : eval(data.decode())["id"]
                 })
                 res = super()._post(soft)
-                if self.biller_payment_method == 'cash':
-                    self.action_register_payment()
                 return res
 
     def validate_fields(self):
