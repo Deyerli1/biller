@@ -29,7 +29,7 @@
         <field name="binding_type">report</field>
         <field name="state">code</field>
         <field name="code">
-            actions = records.print_biller_pdf()
+            action = records.print_biller_pdf()
         </field>
     </record>
 
