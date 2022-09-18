@@ -80,8 +80,6 @@ class AccountMove(models.Model):
                     'biller_id' : eval(data.decode())["id"]
                 })
                 res = super()._post(soft)
-                if self.biller_payment_method == 'cash':
-                    self.action_register_payment()
                 return res
 
     def validate_fields(self):
@@ -130,8 +128,10 @@ class AccountMove(models.Model):
         for record in self:
             if record.state != 'posted':
                 raise ValidationError("La factura {} no se encuentra publicada en Biller".format(record.name))
-        biller_proxy = record.env['biller.record']
-        return biller_proxy.get_biller_pdf(record.biller_id)
+            wizard_proxy = record.env['download.pdf.wizard']
+            res = wizard_proxy.print_biller_pdf(record.biller_id, record.name, record.company_id.access_token)
+            res = 1
+        return
      
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

@@ -81,19 +81,16 @@ class BillerRecord(models.Model):
             'response_date' : fields.Date.today()
         })
 
-    def get_biller_pdf(self, biller_id):
-        return {
-            'type': 'ir.actions.act_url',
-            'url': 'https://test.biller.uy/comprobantes/pdf/{}'.format(biller_id),
-            'target': 'new',
+    def get_biller_pdf(self, biller_id, token):
+        conn = http.client.HTTPSConnection("test.biller.uy")
+        payload = ''
+        authorization = 'Bearer {}'.format(token)
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': authorization
         }
-
-
-
-        
-        
-
-        
-
+        conn.request("GET", "/v2/comprobantes/pdf?id={}".format(biller_id), payload, headers)
+        res = conn.getresponse()
+        return res.read()
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
