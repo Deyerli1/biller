@@ -9,7 +9,6 @@
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='vat']" position="after">
                     <field name="fiscal_document_type"/>
-                    <field name="foreign_contact"/>
                 </xpath>
                 <xpath expr="//field[@name='vat']" position="attributes">
                     <attribute name="attrs">{'readonly': [('parent_id','!=',False)],'invisible':[('fiscal_document_type','=',False)]}</attribute>

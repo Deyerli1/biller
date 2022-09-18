@@ -26,6 +26,7 @@
         'views/product_template_views.xml',
         'views/res_company_views.xml',
         'views/res_partner_views.xml',
+        'views/account_fiscal_position_views.xml',
     ],
 
     'installable': True,

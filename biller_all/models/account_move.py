@@ -1,14 +1,16 @@
 # -*- encoding: utf-8 -*-
-from odoo import models, fields
+from odoo.http import request
+from odoo.addons.web.controllers.main import serialize_exception, content_disposition
+from odoo import models, fields, http
 from odoo.exceptions import UserError, ValidationError
 from datetime import datetime
 import json
 
 ID_TYPE = {
-    'rut' : 2,
-    'ci' : 3,
-    'others' : 4,
-    'passport' : 5,
+    'rut' : [2, 0],
+    'ci' : [3, -10],
+    'others' : [4],
+    'passport' : [5, 10],
     'nin' : 6,
     'nife' : 7
 }
@@ -30,24 +32,21 @@ class AccountMove(models.Model):
         string = "CFEs asociadas",
         copy=False,
     )
-## 41931060
-    def action_post(self):
-        moves_with_payments = self.filtered('payment_id')
-        other_moves = self - moves_with_payments
-        if moves_with_payments:
-            moves_with_payments.payment_id.action_post()
-        if other_moves:
-            other_moves._post(soft=False)
-        return False
+
+    # biller_payment_method = fields.Selection([
+    #     ('cash', 'Contado'),
+    #     ('credit', 'Credito'),], 
+    #     string = "Forma de Pago",
+    #     help = "Si es del tipo Credito, se abrira el wizard de pagos para generar el pago asociado",
+    # )
 
     def _post(self, soft=True):
         if self.move_type in ('out_invoice','out_refund'):
             self.validate_fields()
             biller_proxy = self.env['biller.record']
-            document_type = CODES[self.move_type]
+            doc_type_offset = ID_TYPE[self.partner_id.fiscal_document_type][1]
+            document_type = CODES[self.move_type] + doc_type_offset
             exchange_rate = self.currency_id.rate_ids.filtered(lambda r: r.company_id == self.company_id).rate if self.currency_id.name != 'UYU' else 1
-            if self.partner_id.foreign_contact:
-                document_type+=10
             payload = json.dumps({
                 "tipo_comprobante": document_type,
                 "forma_pago": 2,
@@ -58,7 +57,7 @@ class AccountMove(models.Model):
                 "tasa_cambio" : exchange_rate,
                 "montos_brutos": 0,
                 "cliente": {
-                    "tipo_documento": ID_TYPE[self.partner_id.fiscal_document_type],
+                    "tipo_documento": ID_TYPE[self.partner_id.fiscal_document_type][0],
                     "documento": self.partner_id.vat,
                     "nombre_fantasia": self.partner_id.name[:150],
                 "sucursal": {
@@ -80,11 +79,17 @@ class AccountMove(models.Model):
                     'name' : eval(data.decode())["serie"] + "-" + str(eval(data.decode())["numero"]),
                     'biller_id' : eval(data.decode())["id"]
                 })
-                return super()._post(soft)
+                res = super()._post(soft)
+                if self.biller_payment_method == 'cash':
+                    self.action_register_payment()
+                return res
 
     def validate_fields(self):
         if not self.invoice_date:
             raise ValidationError("Es necesario ingresar fecha de emision")
+        if not self.partner_id.fiscal_document_type:
+            raise ValidationError("El cliente debe tener asignada posicion fiscal")
+
         return
     
     def get_items(self):
@@ -120,6 +125,13 @@ class AccountMove(models.Model):
         if self.reversed_entry_id:
             references.append(self.reversed_entry_id.biller_id)
         return references
-        
+
+    def print_biller_pdf(self):
+        for record in self:
+            if record.state != 'posted':
+                raise ValidationError("La factura {} no se encuentra publicada en Biller".format(record.name))
+        biller_proxy = record.env['biller.record']
+        return biller_proxy.get_biller_pdf(record.biller_id)
+     
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

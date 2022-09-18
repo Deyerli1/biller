@@ -81,6 +81,14 @@ class BillerRecord(models.Model):
             'response_date' : fields.Date.today()
         })
 
+    def get_biller_pdf(self, biller_id):
+        return {
+            'type': 'ir.actions.act_url',
+            'url': 'https://test.biller.uy/comprobantes/pdf/{}'.format(biller_id),
+            'target': 'new',
+        }
+
+
 
         
         

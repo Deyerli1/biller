@@ -1,8 +1,16 @@
 # -*- encoding: utf-8 -*-
 
 from odoo import models, fields, api
+from odoo.exceptions import UserError, ValidationError
 
-
+ID_TYPE = {
+    'rut' : "general_regimen",
+    'ci' : "end_consumer",
+    'others' : False,
+    'passport' : "foreign_partner",
+    'nin' : False,
+    'nife' : False
+    }
 class Partner(models.Model):
     _inherit = 'res.partner'
 
@@ -16,7 +24,13 @@ class Partner(models.Model):
         required=True,
         string = "Tipo de Documento"
     )
-
-    foreign_contact = fields.Boolean("Cliente del exterior")
+    
+    @api.constrains('fiscal_document_type')
+    def check_fiscal_document_type(self):
+        for record in self:
+            fiscal_position = record.property_account_position_id
+            if fiscal_position and fiscal_position != ID_TYPE[record.fiscal_document_type]:
+                raise ValidationError("El documento del tipo {} no coincide con la posicion fiscal {}").format(record.fiscal_document_type, fiscal_position.name)
+                
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
