@@ -17,9 +17,6 @@ class AccountPaymentRegister(models.TransientModel):
         request_string = "/v2/recibos/crear"
         response = biller_proxy.get_response("POST", request_string, payload)
         data = response.read()
-
-        test = json.loads(data)
-
         biller_proxy.create({
             'name' : eval(data.decode())["serie"] + "-" + str(eval(data.decode())["numero"]) if response.code == 201 else "Error",
             'document_type' : 'cfe_sent',
@@ -28,6 +25,8 @@ class AccountPaymentRegister(models.TransientModel):
             'response_date' : datetime.now()
         })
         self.env.cr.commit()
+        if response.code != 201:
+                raise ValidationError("Hubo problemas al enviar el pago")
         res = super(AccountPaymentRegister, self).action_create_payments()
         return res
 
