@@ -5,7 +5,6 @@ from odoo.exceptions import UserError, ValidationError
 from datetime import datetime
 import json
 
-
 class AccountPaymentRegister(models.TransientModel):
 
     _inherit = 'account.payment.register'

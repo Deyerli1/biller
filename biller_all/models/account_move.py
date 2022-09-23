@@ -31,13 +31,6 @@ class AccountMove(models.Model):
         copy=False,
     )
 
-    # biller_payment_method = fields.Selection([
-    #     ('cash', 'Contado'),
-    #     ('credit', 'Credito'),], 
-    #     string = "Forma de Pago",
-    #     help = "Si es del tipo Credito, se abrira el wizard de pagos para generar el pago asociado",
-    # )
-
     def _post(self, soft=True):
         if self.move_type in ('out_invoice','out_refund'):
             self.validate_fields()

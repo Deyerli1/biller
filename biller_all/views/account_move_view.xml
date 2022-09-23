@@ -12,9 +12,6 @@
             <xpath expr="//field[@name='line_ids']/tree" position="inside">
                 <field name="invoicing_indicator" invisible="1"/>
             </xpath>
-            <xpath expr="//group[@id='header_right_group']" position="inside">
-             <!--   <field name="biller_payment_method" attrs="{'readonly': [('state', '!=','draft')], 'required' : [('state', '=','draft')]}"/> --> 
-            </xpath>
             <xpath expr="//button[@name='button_draft']" position="attributes">
                 <attribute name="invisible">1</attribute>
             </xpath>

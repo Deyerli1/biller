@@ -10,6 +10,4 @@ class Company(models.Model):
     
     branch_office = fields.Integer("Sucursal ID Biller")
 
-#@api.onchange("access_token")
-
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
