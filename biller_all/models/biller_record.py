@@ -73,27 +73,28 @@ class BillerRecord(models.Model):
         payload = ''
         res = self.get_response("GET", request_string, payload)
         data = res.read()
-        return self.create({
+        self.create({
             'name' : "Obtener comprobantes {}".format(datetime.now().strftime("%d/%m/%Y %H:%M")),
             'document_type' : 'cfe_received',
             'payload' : payload,
             'response' : data if bool(data) else "No hubo comprobantes en el rango especificado de {} a {}".format(date_from, date_to),
             'response_date' : fields.Date.today()
         })
+        return data
 
-    def get_biller_pdf(self, biller_id):
-        return {
-            'type': 'ir.actions.act_url',
-            'url': 'https://test.biller.uy/comprobantes/pdf/{}'.format(biller_id),
-            'target': 'new',
+    def create_received_documents(self, date_from, date_to):
+        received_documents = self.get_received_documents(date_from, date_to)
+
+    def get_biller_pdf(self, biller_id, token):
+        conn = http.client.HTTPSConnection("test.biller.uy")
+        payload = ''
+        authorization = 'Bearer {}'.format(token)
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': authorization
         }
-
-
-
-        
-        
-
-        
-
+        conn.request("GET", "/v2/comprobantes/pdf?id={}".format(biller_id), payload, headers)
+        res = conn.getresponse()
+        return res.read()
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

@@ -29,8 +29,7 @@ class Partner(models.Model):
     def check_fiscal_document_type(self):
         for record in self:
             fiscal_position = record.property_account_position_id
-            if fiscal_position and fiscal_position != ID_TYPE[record.fiscal_document_type]:
-                raise ValidationError("El documento del tipo {} no coincide con la posicion fiscal {}").format(record.fiscal_document_type, fiscal_position.name)
+            if fiscal_position and fiscal_position.type != ID_TYPE[record.fiscal_document_type]:
+                raise ValidationError("El documento del tipo {} no coincide con la posicion fiscal {}".format(record.fiscal_document_type, fiscal_position.name))
                 
-
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

@@ -1,8 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-from odoo import models, fields, api
+from odoo import models, fields
 from datetime import datetime
-
 class GetDocumentsWizard(models.TransientModel):
 
     _name = 'get.documents.wizard'
@@ -36,9 +35,5 @@ class GetDocumentsWizard(models.TransientModel):
             'domain': [('id', '=', res.id)],
             'view_mode': 'form',
         }
-
-
-
-    
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
