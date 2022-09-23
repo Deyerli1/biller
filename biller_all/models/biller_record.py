@@ -73,13 +73,17 @@ class BillerRecord(models.Model):
         payload = ''
         res = self.get_response("GET", request_string, payload)
         data = res.read()
-        return self.create({
+        self.create({
             'name' : "Obtener comprobantes {}".format(datetime.now().strftime("%d/%m/%Y %H:%M")),
             'document_type' : 'cfe_received',
             'payload' : payload,
             'response' : data if bool(data) else "No hubo comprobantes en el rango especificado de {} a {}".format(date_from, date_to),
             'response_date' : fields.Date.today()
         })
+        return data
+
+    def create_received_documents(self, date_from, date_to):
+        received_documents = self.get_received_documents(date_from, date_to)
 
     def get_biller_pdf(self, biller_id, token):
         conn = http.client.HTTPSConnection("test.biller.uy")
