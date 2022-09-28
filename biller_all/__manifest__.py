@@ -11,7 +11,7 @@
 
     'author': 'Jon Horton',
 
-    'website': 'https://www.fiverr.com/horton_jon/set-up-customize-create-and-develop-odoo-erp-applications-for-you',
+    'website': '',
 
     'depends': [
         'account',

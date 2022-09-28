@@ -65,9 +65,9 @@ class AccountMove(models.Model):
                 "documento": self.partner_id.vat,
                 "razon_social": self.partner_id.name[:150],
             "sucursal": {
-                "direccion": self.partner_id.street[:70],
-                "ciudad": self.partner_id.city[:30],
-                "departamento": self.partner_id.state_id.name[:30],
+                "direccion": self.partner_id.street[:70] if self.partner_id.street else '',
+                "ciudad": self.partner_id.city[:30] if self.partner_id.city else '',
+                "departamento": self.partner_id.state_id.name[:30] if self.partner_id.state_id.name else '',
                 "pais": self.partner_id.country_id.code
                 }
             },
@@ -82,6 +82,8 @@ class AccountMove(models.Model):
             raise ValidationError("Es necesario ingresar fecha de emision")
         if not self.partner_id.fiscal_document_type:
             raise ValidationError("El cliente debe tener asignada posicion fiscal")
+        if not self.partner_id.country_id.code:
+            raise ValidationError("El cliente debe tener asignado un pais")
 
         return
     
