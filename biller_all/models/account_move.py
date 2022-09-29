@@ -84,7 +84,9 @@ class AccountMove(models.Model):
             raise ValidationError("El cliente debe tener asignada posicion fiscal")
         if not self.partner_id.country_id.code:
             raise ValidationError("El cliente debe tener asignado un pais")
-
+        for line in self.invoice_line_ids:
+            if not line.invoicing_indicator:
+                raise ValidationError("Todas las lineas deben tener Indicador de Facturacion")
         return
     
     def get_items(self):
