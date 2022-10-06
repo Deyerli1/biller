@@ -13,7 +13,8 @@ class BillerRecord(models.Model):
     document_type = fields.Selection([
         ('cfe_sent', 'Factura Enviada'),
         ('cfe_received', 'Factura Recibida'),
-        ('payment_sent', 'Pago enviado'),], 
+        ('payment_sent', 'Pago enviado'),
+        ('payment_canceled', 'Pago cancelado'),], 
         readonly=True,
         string = "Tipo de documento"
     )
@@ -96,5 +97,18 @@ class BillerRecord(models.Model):
         conn.request("GET", "/v2/comprobantes/pdf?id={}".format(biller_id), payload, headers)
         res = conn.getresponse()
         return res.read()
+
+    def cancel(self, request_string, payload, type):
+        res = self.get_response("POST", request_string, payload)
+        data = res.read()
+        self.create({
+            'name': eval(data.decode())["serie"] + "-" + str(eval(data.decode())["numero"]) if res.code == 201 else "Error on {} action".format(type),
+            'document_type': type,
+            'payload': payload,
+            'response': data,
+            'response_date': datetime.now()
+        })
+        self.env.cr.commit()
+        return res, data
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

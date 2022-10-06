@@ -53,24 +53,14 @@ class AccountMove(models.Model):
         exchange_rate = self.currency_id.rate_ids.filtered(lambda r: r.company_id == self.company_id).rate if self.currency_id.name != 'UYU' else 1
         payload = ({
             "tipo_comprobante": document_type,
-            "forma_pago": 2,
+            "forma_pago": 1 if self.get_client() == '-' else 2,
             "fecha_emision" : self.invoice_date.strftime("%d/%m/%Y"),
             "fecha_vencimiento" :self.invoice_date_due.strftime("%d/%m/%Y"),
             "sucursal": self.company_id.branch_office,
             "moneda": self.currency_id.name,
             "tasa_cambio" : exchange_rate,
             "montos_brutos": 0,
-            "cliente": {
-                "tipo_documento": ID_TYPE[self.partner_id.fiscal_document_type][0],
-                "documento": self.partner_id.vat,
-                "razon_social": self.partner_id.name[:150],
-            "sucursal": {
-                "direccion": self.partner_id.street[:70] if self.partner_id.street else '',
-                "ciudad": self.partner_id.city[:30] if self.partner_id.city else '',
-                "departamento": self.partner_id.state_id.name[:30] if self.partner_id.state_id.name else '',
-                "pais": self.partner_id.country_id.code
-                }
-            },
+            "cliente": self.get_client(),
             'items' : self.get_items(),
             'descuentosRecargos': self.get_discounts(),
             'referencias' : self.get_references()
@@ -88,6 +78,22 @@ class AccountMove(models.Model):
             if not line.invoicing_indicator:
                 raise ValidationError("Todas las lineas deben tener Indicador de Facturacion")
         return
+    
+    def get_client(self):
+        if self.partner_id.fiscal_document_type == 'ci' and self.partner_id.vat == '-':
+           return  "-"
+        else:
+            return {
+                "tipo_documento": ID_TYPE[self.partner_id.fiscal_document_type][0],
+                "documento": self.partner_id.vat,
+                "razon_social": self.partner_id.name[:150],
+                    "sucursal": {
+                        "direccion": self.partner_id.street[:70] if self.partner_id.street else '',
+                        "ciudad": self.partner_id.city[:30] if self.partner_id.city else '',
+                        "departamento": self.partner_id.state_id.name[:30] if self.partner_id.state_id.name else '',
+                        "pais": self.partner_id.country_id.code
+                }
+            }
     
     def get_items(self):
         items=[]
@@ -121,6 +127,8 @@ class AccountMove(models.Model):
         references=[]
         if self.reversed_entry_id:
             references.append(self.reversed_entry_id.biller_id)
+            if self.reversed_entry_id.payment_id:
+                self.reversed_entry_id.payment_id.biller_cancel_self()
         return references
 
     def print_biller_pdf(self):
@@ -128,6 +136,6 @@ class AccountMove(models.Model):
             if record.state != 'posted':
                 raise ValidationError("La factura {} no se encuentra publicada en Biller".format(record.name))
             wizard_proxy = record.env['download.pdf.wizard']
-            return wizard_proxy.print_biller_pdf(record.biller_id, record.name, record.company_id.access_token)        
+            return wizard_proxy.print_biller_pdf(record.biller_id, record.name, record.company_id.access_token)   
      
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
