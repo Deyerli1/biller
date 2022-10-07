@@ -87,6 +87,7 @@ class AccountMove(models.Model):
                 "tipo_documento": ID_TYPE[self.partner_id.fiscal_document_type][0],
                 "documento": self.partner_id.vat,
                 "razon_social": self.partner_id.name[:150],
+                "nombre_fantasia" : self.partner_id.name[:150],
                     "sucursal": {
                         "direccion": self.partner_id.street[:70] if self.partner_id.street else '',
                         "ciudad": self.partner_id.city[:30] if self.partner_id.city else '',
