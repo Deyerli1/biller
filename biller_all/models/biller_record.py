@@ -5,7 +5,6 @@ from dateutil.relativedelta import relativedelta
 from odoo import models, fields
 from odoo.exceptions import UserError, ValidationError
 import http.client
-
 class BillerRecord(models.Model):
     _name = 'biller.record'
     _description = "Model to keep track of sent and received biller messages"
@@ -28,7 +27,7 @@ class BillerRecord(models.Model):
     response_date = fields.Datetime("Fecha de creación", copy=False,readonly=True)
 
     def get_response(self, type, request_string, payload):
-        conn = http.client.HTTPSConnection("test.biller.uy")
+        conn = http.client.HTTPSConnection("biller.uy")
         authorization = 'Bearer {}'.format(self.env.company.access_token)
         headers = {
             'Content-Type': 'application/json',
@@ -58,7 +57,7 @@ class BillerRecord(models.Model):
         request_string = "/v2/comprobantes/obtener?{}{}desde={}%2000:00:00&hasta={}%2023:59:59".format(doc_id, branch_office, date_from, date_to)
         payload = ''
         res = self.get_response("GET", request_string, payload)
-        data = res.read()
+        data = res.read()    
         return self.create({
             'name' : "Obtener comprobantes {}".format(datetime.now().strftime("%d/%m/%Y %H:%M")),
             'document_type' : 'cfe_received',
@@ -70,7 +69,8 @@ class BillerRecord(models.Model):
     def get_received_documents(self, date_from, date_to):
         date_from = date_from.strftime("%Y-%m-%d") if date_from else fields.Date.today().strftime("%Y-%m-%d")
         date_to = date_to.strftime("%Y-%m-%d") if date_to else (fields.Date.today() - relativedelta(days=1)).strftime("%Y-%m-%d")
-        request_string = "/v2/comprobantes/recibidos/obtener?fecha_desde={}&fecha_hasta={}".format(date_from, date_to)
+        # request_string = "/v2/comprobantes/obtener?recibidos=1&desde={}%2000:00:00&hasta={}%2023:59:59".format(date_from, date_to)
+        request_string = "/v2/comprobantes/obtener?recibidos=1&desde=2022-10-01%2000:00:00&hasta=2022-11-01%2000:00:00"
         payload = ''
         res = self.get_response("GET", request_string, payload)
         data = res.read()
@@ -87,7 +87,7 @@ class BillerRecord(models.Model):
         received_documents = self.get_received_documents(date_from, date_to)
 
     def get_biller_pdf(self, biller_id, token):
-        conn = http.client.HTTPSConnection("test.biller.uy")
+        conn = http.client.HTTPSConnection("biller.uy")
         payload = ''
         authorization = 'Bearer {}'.format(token)
         headers = {

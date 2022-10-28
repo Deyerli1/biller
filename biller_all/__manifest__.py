@@ -3,7 +3,7 @@
 
     'name': 'Biller all',
 
-    'version': '1.0',
+    'version': '1.2',
 
     'category': '',
 
@@ -25,6 +25,7 @@
         'views/account_move_view.xml',
         'views/product_template_views.xml',
         'views/res_company_views.xml',
+        'views/res_config_settings_views.xml',
         'views/res_partner_views.xml',
         'views/account_fiscal_position_views.xml',
     ],

@@ -8,6 +8,7 @@ from . import account_fiscal_position
 from . import biller_record
 from . import product_template
 from . import res_company
+from . import res_config_settings
 from . import res_partner
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
