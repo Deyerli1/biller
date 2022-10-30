@@ -10,8 +10,13 @@
                 <field name="is_discount"/>
                 <field name="discount_overcharge" attrs="{'invisible': [('is_discount', '=', False)], 'required': [('is_discount', '=', True)]}"/>
             </xpath>
+            <group name="bill" position="inside">
+                <field name="min_rate_tax" context="{'default_type_tax_use':'purchase', 'search_default_purchase': 1, 'search_default_service': type == 'service', 'search_default_goods': type == 'consu'}"/>
+            </group>
         </field>
     </record>
+
+
 
 </odoo>
 

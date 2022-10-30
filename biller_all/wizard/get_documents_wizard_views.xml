@@ -14,7 +14,7 @@
                         <field name="date_to"/>
                     </group>
                     <footer>
-                        <button string="Obtener comprobantes" type="object" name="manual_get_received_documents" class="oe_highlight"/>
+                        <button string="Obtener comprobantes" type="object" name="manual_create_received_documents" class="oe_highlight"/>
                         o
                         <button class="oe_link" special="cancel" string="Salir"/>
                     </footer>

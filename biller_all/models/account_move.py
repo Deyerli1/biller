@@ -20,6 +20,10 @@ CODES = {
     'in_refund' : 113,
 }
 
+REVERSE_CODES = {
+    111 : "in_invoice",
+}
+
 class AccountMove(models.Model):
     _inherit = 'account.move'
 
@@ -139,4 +143,44 @@ class AccountMove(models.Model):
             wizard_proxy = record.env['download.pdf.wizard']
             return wizard_proxy.print_biller_pdf(record.biller_id, record.name, record.company_id.access_token)   
      
+    def create_received(self, vals):
+        if self.search([("biller_id", "=", vals["id"])]):
+            return
+        partner_id = self.get_partner(vals["cliente"])
+
+        lines = {
+            "product_id" : self.env.company.biller_default_product_id,
+            "quantity" : 1,
+            "price_unit" : float(vals["total"]) - float(vals["tot_iva_tasa_bas"]) - float(vals["tot_iva_tasa_min"]),
+        }
+        return self.with_context(check_move_validity=False).create({
+            "biller_id" : vals["id"],
+            "name" : vals["serie"] + "-" + str(vals["numero"]),
+            "amount_total" : float(vals["total"]),
+            "invoice_date" : datetime.strptime(vals["fecha_emision"], '%Y-%m-%d').date(),
+            "state" : "draft", 
+            "move_type" : REVERSE_CODES[vals["tipo_comprobante"]],
+            "partner_id" : partner_id,
+            "invoice_line_ids" : [(0, None, lines),]
+
+        })
+        
+    
+    def get_partner(self, vals):
+        partner = self.env['res.partner'].search([
+            ("fiscal_document_type", "=", vals["tipo_documento"].lower()),
+            ("vat", "=", vals["documento"]),
+            ])
+        if partner:
+            return partner
+        else:
+            return self.env['res.partner'].create({
+                'name' : vals["razon_social"],
+                'vat' : vals["documento"],
+                "fiscal_document_type" : vals["tipo_documento"].lower(),
+                "street" : vals["sucursal"]["direccion"],
+                "city" : vals["sucursal"]["ciudad"],
+                "country_id" : self.env['res.country'].search([("code", "=",  vals["sucursal"]["pais"])]).id
+                })
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

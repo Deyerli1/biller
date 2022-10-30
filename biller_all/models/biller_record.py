@@ -5,6 +5,7 @@ from dateutil.relativedelta import relativedelta
 from odoo import models, fields
 from odoo.exceptions import UserError, ValidationError
 import http.client
+
 class BillerRecord(models.Model):
     _name = 'biller.record'
     _description = "Model to keep track of sent and received biller messages"
@@ -70,7 +71,7 @@ class BillerRecord(models.Model):
         date_from = date_from.strftime("%Y-%m-%d") if date_from else fields.Date.today().strftime("%Y-%m-%d")
         date_to = date_to.strftime("%Y-%m-%d") if date_to else (fields.Date.today() - relativedelta(days=1)).strftime("%Y-%m-%d")
         # request_string = "/v2/comprobantes/obtener?recibidos=1&desde={}%2000:00:00&hasta={}%2023:59:59".format(date_from, date_to)
-        request_string = "/v2/comprobantes/obtener?recibidos=1&desde=2022-10-01%2000:00:00&hasta=2022-11-01%2000:00:00"
+        request_string = "/v2/comprobantes/obtener?recibidos=1&desde=2021-10-01%2000:00:00&hasta=2022-11-01%2000:00:00"
         payload = ''
         res = self.get_response("GET", request_string, payload)
         data = res.read()
@@ -85,6 +86,7 @@ class BillerRecord(models.Model):
 
     def create_received_documents(self, date_from, date_to):
         received_documents = self.get_received_documents(date_from, date_to)
+
 
     def get_biller_pdf(self, biller_id, token):
         conn = http.client.HTTPSConnection("biller.uy")

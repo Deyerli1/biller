@@ -13,4 +13,10 @@ class ProductTemplate(models.Model):
             string = "Recargo/Descuento"
             )
 
+    min_rate_tax = fields.Many2one(
+        comodel_name='account.tax',
+        string="Tasa basica",
+        domain=[('type_tax_use', '=', 'purchase')], 
+        default=lambda self: self.env.company.account_purchase_tax_id
+    )
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

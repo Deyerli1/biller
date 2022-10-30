@@ -11,7 +11,7 @@ class Company(models.Model):
     branch_office = fields.Integer("Sucursal ID Biller")
 
     biller_default_product_id = fields.Many2one(
-        comodel_name='product.template',
+        comodel_name='product.product',
         string="Producto por defecto",
         help="Producto por defecto a usar para crear comprobantes recibidos por Biller",
     )

@@ -1,7 +1,14 @@
 # -*- encoding: utf-8 -*-
 
+from asyncore import dispatcher
+from xml.dom import ValidationErr
 from odoo import models, fields
+import json
 from datetime import datetime
+
+CODES = {
+    111 : "account.move",
+}
 class GetDocumentsWizard(models.TransientModel):
 
     _name = 'get.documents.wizard'
@@ -25,9 +32,13 @@ class GetDocumentsWizard(models.TransientModel):
             'views': [[False, "tree"], [False, "form"]],
         }
 
-    def manual_get_received_documents(self):
+    def manual_create_received_documents(self):
         biller_proxy = self.env['biller.record']
         res = biller_proxy.get_received_documents(self.date_from, self.date_to)
+        data = res.decode()
+        records =  json.loads(data)
+        self.record_maker(records)
+        return
         return {
             'name': 'Documentos obtenidos',
             'res_model': 'biller.record',
@@ -35,5 +46,16 @@ class GetDocumentsWizard(models.TransientModel):
             'domain': [('id', '=', res.id)],
             'view_mode': 'form',
         }
+
+    def record_maker(self, records):
+        i = 0
+        for rec in records:
+            model = CODES[rec["tipo_comprobante"]]
+            self.env[model].create_received(rec)
+            i+=1
+            if i == 9:
+                return
+
+    
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
