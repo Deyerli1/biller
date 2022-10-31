@@ -29,7 +29,7 @@ class AccountMoveBillerReport(http.Controller):
         :param filename: Nombre del archivo.
         :returns: :class:`werkzeug.wrappers.Response`, descarga del archivo excel.
         """
-        response = request.env['biller.record'].get_biller_pdf(int(biller_id),token)
+        response, _ = request.env['biller.record'].get_biller_pdf(int(biller_id),token)
         filecontent = base64.b64decode( response or '')
         return request.make_response(filecontent, [('Content-Type', 'application/octet-stream'),
                                                    ('Content-Disposition', content_disposition(filename))])

@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+from csv import reader
 from odoo import models, fields
 from odoo.exceptions import UserError, ValidationError
 from datetime import datetime
@@ -148,11 +149,12 @@ class AccountMove(models.Model):
             return
         partner_id = self.get_partner(vals["cliente"])
 
-        lines = {
-            "product_id" : self.env.company.biller_default_product_id,
-            "quantity" : 1,
-            "price_unit" : float(vals["total"]) - float(vals["tot_iva_tasa_bas"]) - float(vals["tot_iva_tasa_min"]),
-        }
+        lines_values_list = self.get_received_lines(vals["id"])
+        lines = []
+        for line_values in lines_values_list:
+            line = (0, None, line_values)
+            lines.append(line)
+
         return self.with_context(check_move_validity=False).create({
             "biller_id" : vals["id"],
             "name" : vals["serie"] + "-" + str(vals["numero"]),
@@ -161,8 +163,7 @@ class AccountMove(models.Model):
             "state" : "draft", 
             "move_type" : REVERSE_CODES[vals["tipo_comprobante"]],
             "partner_id" : partner_id,
-            "invoice_line_ids" : [(0, None, lines),]
-
+            "invoice_line_ids" : lines
         })
         
     
@@ -177,10 +178,65 @@ class AccountMove(models.Model):
             return self.env['res.partner'].create({
                 'name' : vals["razon_social"],
                 'vat' : vals["documento"],
-                "fiscal_document_type" : vals["tipo_documento"].lower(),
-                "street" : vals["sucursal"]["direccion"],
-                "city" : vals["sucursal"]["ciudad"],
-                "country_id" : self.env['res.country'].search([("code", "=",  vals["sucursal"]["pais"])]).id
+                'fiscal_document_type' : vals["tipo_documento"].lower(),
+                'street' : vals["sucursal"]["direccion"],
+                'city' : vals["sucursal"]["ciudad"],
+                'country_id' : self.env['res.country'].search([("code", "=",  vals["sucursal"]["pais"])]).id
                 })
+
+    def get_received_lines(self, biller_id):
+        biller_proxy = self.env['biller.record']
+        _, pdf_blocks = biller_proxy.get_biller_pdf(biller_id, self.env.company.access_token)
+        item_blocks = pdf_blocks[10:]
+        lines = []
+        for item in item_blocks:
+            try:
+                elements = item[4].split("\n")
+                if "Subtotal" in elements[1]:
+                    break
+                i=1
+                while len(elements) > 5:
+                    elements[0] += " " + elements[i]
+                    elements.pop(i)
+                    i+=1
+                product = self.get_product(elements[0])
+                if len(elements) == 3:
+                    price_unit = float(elements[1].replace(".",""))
+                    price_unit = float(price_unit.replace(",","."))
+                    line = {
+                        'product_id' : product,
+                        'price_unit' : price_unit
+                    }
+                    lines.append(line)
+                elif len(elements) == 5:
+                    price_unit = elements[1].replace(".","")
+                    price_unit = float(price_unit.replace(",","."))
+                    quantity = elements[2].replace(".","")
+                    quantity =  float(quantity.replace(",","."))
+                    line = {
+                        'product_id' : product,
+                        'quantity' : quantity,
+                        'price_unit' : price_unit
+                    }
+                    lines.append(line)
+            except:
+                continue
+        return lines
+                
+
+    def get_product(self, name):
+        product = self.env['product.product'].search([("name", "=", name)])
+        if product:
+            return product
+        tax_ids = self.env['account.tax'].search([
+            ("type_tax_use", "=", "purchase"),
+            ("company_id", "=", self.env.company.id),
+        ]).ids
+        return self.env['product.product'].create({
+            'name': name,
+            'purchase_ok': True,
+            'detailed_type': "consu",
+            'supplier_taxes_id': [(6, 0, tax_ids)]
+        })
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

@@ -5,7 +5,8 @@ from dateutil.relativedelta import relativedelta
 from odoo import models, fields
 from odoo.exceptions import UserError, ValidationError
 import http.client
-
+from base64 import b64decode
+import fitz
 class BillerRecord(models.Model):
     _name = 'biller.record'
     _description = "Model to keep track of sent and received biller messages"
@@ -70,8 +71,7 @@ class BillerRecord(models.Model):
     def get_received_documents(self, date_from, date_to):
         date_from = date_from.strftime("%Y-%m-%d") if date_from else fields.Date.today().strftime("%Y-%m-%d")
         date_to = date_to.strftime("%Y-%m-%d") if date_to else (fields.Date.today() - relativedelta(days=1)).strftime("%Y-%m-%d")
-        # request_string = "/v2/comprobantes/obtener?recibidos=1&desde={}%2000:00:00&hasta={}%2023:59:59".format(date_from, date_to)
-        request_string = "/v2/comprobantes/obtener?recibidos=1&desde=2021-10-01%2000:00:00&hasta=2022-11-01%2000:00:00"
+        request_string = "/v2/comprobantes/obtener?recibidos=1&desde={}%2000:00:00&hasta={}%2023:59:59".format(date_from, date_to)
         payload = ''
         res = self.get_response("GET", request_string, payload)
         data = res.read()
@@ -84,10 +84,6 @@ class BillerRecord(models.Model):
         })
         return data
 
-    def create_received_documents(self, date_from, date_to):
-        received_documents = self.get_received_documents(date_from, date_to)
-
-
     def get_biller_pdf(self, biller_id, token):
         conn = http.client.HTTPSConnection("biller.uy")
         payload = ''
@@ -96,9 +92,20 @@ class BillerRecord(models.Model):
             'Content-Type': 'application/json',
             'Authorization': authorization
         }
-        conn.request("GET", "/v2/comprobantes/pdf?id={}".format(biller_id), payload, headers)
+        conn.request("GET", "/v2/comprobantes/pdf?id={}".format(9183389), payload, headers)
         res = conn.getresponse()
-        return res.read()
+        data = res.read()
+        bytes = b64decode(data.decode())
+        doc = fitz.open("pdf", bytes)
+        blocks = []
+        i=0
+        for page in doc:
+            page_blocks = page.get_text("blocks", sort=True)
+            if i > 0:
+                page_blocks = page_blocks[5:]
+            blocks+= page_blocks[:len(page_blocks)-3]
+            i+=1
+        return data, blocks
 
     def cancel(self, request_string, payload, type):
         res = self.get_response("POST", request_string, payload)
@@ -112,5 +119,21 @@ class BillerRecord(models.Model):
         })
         self.env.cr.commit()
         return res, data
+
+    def get_product(self, name):
+        product = self.env['product.product'].search([("name", "=", name)])
+        if product:
+            return product
+        tax_ids = self.env['account.tax'].search([
+            ("type_tax_use", "=", "purchase"),
+            ("company_id", "=", self.env.company.id),
+        ]).ids
+        return self.env['product.product'].create({
+            'name': name,
+            'purchase_ok': True,
+            'detailed_type': "consu",
+            'supplier_taxes_id': [(6, 0, tax_ids)]
+        })
+
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

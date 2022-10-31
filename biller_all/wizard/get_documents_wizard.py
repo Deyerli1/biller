@@ -48,13 +48,13 @@ class GetDocumentsWizard(models.TransientModel):
         }
 
     def record_maker(self, records):
-        i = 0
         for rec in records:
-            model = CODES[rec["tipo_comprobante"]]
-            self.env[model].create_received(rec)
-            i+=1
-            if i == 9:
-                return
+            try:
+                model = CODES[rec["tipo_comprobante"]]
+                self.env[model].create_received(rec)
+            except:
+                continue
+        return
 
     
 
