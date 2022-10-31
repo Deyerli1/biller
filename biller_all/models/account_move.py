@@ -56,6 +56,8 @@ class AccountMove(models.Model):
         doc_type_offset = ID_TYPE[self.partner_id.fiscal_document_type][1]
         document_type = CODES[self.move_type] + doc_type_offset
         exchange_rate = self.currency_id.rate_ids.filtered(lambda r: r.company_id == self.company_id).rate if self.currency_id.name != 'UYU' else 1
+        taxes = self.invoice_line_ids.tax_ids.filtered(lambda r: r.price_include == True)
+        tax_included = 1 if any(taxes) else 0 
         payload = ({
             "tipo_comprobante": document_type,
             "forma_pago": 1 if self.get_client() == '-' else 2,
@@ -64,7 +66,7 @@ class AccountMove(models.Model):
             "sucursal": self.company_id.branch_office,
             "moneda": self.currency_id.name,
             "tasa_cambio" : exchange_rate,
-            "montos_brutos": 0,
+            "montos_brutos": tax_included,
             "cliente": self.get_client(),
             'items' : self.get_items(),
             'descuentosRecargos': self.get_discounts(),
@@ -148,13 +150,24 @@ class AccountMove(models.Model):
         if self.search([("biller_id", "=", vals["id"])]):
             return
         partner_id = self.get_partner(vals["cliente"])
+        
+        # Figure out what taxes to apply to the lines
+        if vals["tot_iva_tasa_bas"]:
+            taxes = self.env['account.tax'].search([('amount', '=', 22), ("type_tax_use", "=", "purchase",)], limit=1).id
+        elif vals["tot_iva_tasa_min"]:
+            taxes = self.env['account.tax'].search([('amount', '=', 10), ("type_tax_use", "=", "purchase",)], limit=1).id
+        else:
+            taxes = self.env['account.tax'].search([('amount', '=', 22), ("type_tax_use", "=", "purchase",)], limit=1).id
 
-        lines_values_list = self.get_received_lines(vals["id"])
+        # Get lines by looking up the PDF of the document and parsing it
+        lines_values_list = self.get_received_lines(vals["id"], taxes)
         lines = []
+        # Generate CREATE triplet
         for line_values in lines_values_list:
             line = (0, None, line_values)
             lines.append(line)
-
+        
+        # Return created account.move
         return self.with_context(check_move_validity=False).create({
             "biller_id" : vals["id"],
             "name" : vals["serie"] + "-" + str(vals["numero"]),
@@ -184,7 +197,7 @@ class AccountMove(models.Model):
                 'country_id' : self.env['res.country'].search([("code", "=",  vals["sucursal"]["pais"])]).id
                 })
 
-    def get_received_lines(self, biller_id):
+    def get_received_lines(self, biller_id, tax):
         biller_proxy = self.env['biller.record']
         _, pdf_blocks = biller_proxy.get_biller_pdf(biller_id, self.env.company.access_token)
         item_blocks = pdf_blocks[10:]
@@ -200,12 +213,14 @@ class AccountMove(models.Model):
                     elements.pop(i)
                     i+=1
                 product = self.get_product(elements[0])
+
                 if len(elements) == 3:
-                    price_unit = float(elements[1].replace(".",""))
+                    price_unit = elements[1].replace(".","")
                     price_unit = float(price_unit.replace(",","."))
                     line = {
                         'product_id' : product,
-                        'price_unit' : price_unit
+                        'price_unit' : price_unit,
+                        'tax_ids' : [(4, tax, 0)]
                     }
                     lines.append(line)
                 elif len(elements) == 5:
@@ -216,7 +231,9 @@ class AccountMove(models.Model):
                     line = {
                         'product_id' : product,
                         'quantity' : quantity,
-                        'price_unit' : price_unit
+                        'price_unit' : price_unit,
+                        'tax_ids' : [(4, tax, 0)]
+
                     }
                     lines.append(line)
             except:

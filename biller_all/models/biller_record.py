@@ -92,7 +92,7 @@ class BillerRecord(models.Model):
             'Content-Type': 'application/json',
             'Authorization': authorization
         }
-        conn.request("GET", "/v2/comprobantes/pdf?id={}".format(9183389), payload, headers)
+        conn.request("GET", "/v2/comprobantes/pdf?id={}".format(biller_id), payload, headers)
         res = conn.getresponse()
         data = res.read()
         bytes = b64decode(data.decode())
@@ -119,21 +119,5 @@ class BillerRecord(models.Model):
         })
         self.env.cr.commit()
         return res, data
-
-    def get_product(self, name):
-        product = self.env['product.product'].search([("name", "=", name)])
-        if product:
-            return product
-        tax_ids = self.env['account.tax'].search([
-            ("type_tax_use", "=", "purchase"),
-            ("company_id", "=", self.env.company.id),
-        ]).ids
-        return self.env['product.product'].create({
-            'name': name,
-            'purchase_ok': True,
-            'detailed_type': "consu",
-            'supplier_taxes_id': [(6, 0, tax_ids)]
-        })
-
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

@@ -39,20 +39,13 @@ class GetDocumentsWizard(models.TransientModel):
         records =  json.loads(data)
         self.record_maker(records)
         return
-        return {
-            'name': 'Documentos obtenidos',
-            'res_model': 'biller.record',
-            'type': 'ir.actions.act_window',
-            'domain': [('id', '=', res.id)],
-            'view_mode': 'form',
-        }
 
     def record_maker(self, records):
         for rec in records:
             try:
                 model = CODES[rec["tipo_comprobante"]]
                 self.env[model].create_received(rec)
-            except:
+            except KeyError:
                 continue
         return
 

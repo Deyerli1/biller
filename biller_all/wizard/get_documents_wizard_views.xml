@@ -8,8 +8,6 @@
             <field name="arch" type="xml">
                 <form>
                     <group>
-                        <field name="document_id"/>
-                        <field name="branch_office_id"/>
                         <field name="date_from"/>
                         <field name="date_to"/>
                     </group>
