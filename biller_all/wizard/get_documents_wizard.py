@@ -8,6 +8,7 @@ from datetime import datetime
 
 CODES = {
     111 : "account.move",
+    101 : "account.move"
 }
 class GetDocumentsWizard(models.TransientModel):
 
@@ -38,6 +39,10 @@ class GetDocumentsWizard(models.TransientModel):
         data = res.decode()
         records =  json.loads(data)
         self.record_maker(records)
+        res = biller_proxy.get_received_documents_dgi(self.date_from, self.date_to)
+        data = res.decode()
+        records =  json.loads(data)
+        self.record_maker_dgi(records)
         return
 
     def record_maker(self, records):
@@ -45,6 +50,15 @@ class GetDocumentsWizard(models.TransientModel):
             try:
                 model = CODES[rec["tipo_comprobante"]]
                 self.env[model].create_received(rec)
+            except KeyError:
+                continue
+        return
+
+    def record_maker_dgi(self, records):
+        for rec in records:
+            try:
+                model = CODES[rec["tipo"]]
+                self.env[model].create_received_dgi(rec)
             except KeyError:
                 continue
         return

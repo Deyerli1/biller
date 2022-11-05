@@ -84,6 +84,22 @@ class BillerRecord(models.Model):
         })
         return data
 
+    def get_received_documents_dgi(self, date_from, date_to):
+        date_from = date_from.strftime("%Y-%m-%d") if date_from else fields.Date.today().strftime("%Y-%m-%d")
+        date_to = date_to.strftime("%Y-%m-%d") if date_to else (fields.Date.today() - relativedelta(days=1)).strftime("%Y-%m-%d")
+        request_string = "/v2/comprobantes/recibidos/obtener?fecha_desde={}&fecha_hasta={}".format(date_from, date_to)
+        payload = ''
+        res = self.get_response("GET", request_string, payload)
+        data = res.read()
+        self.create({
+            'name' : "Obtener comprobantes DGI{}".format(datetime.now().strftime("%d/%m/%Y %H:%M")),
+            'document_type' : 'cfe_received',
+            'payload' : payload,
+            'response' : data if bool(data) else "No hubo comprobantes en el rango especificado de {} a {}".format(date_from, date_to),
+            'response_date' : fields.Date.today()
+        })
+        return data
+
     def get_biller_pdf(self, biller_id, token):
         conn = http.client.HTTPSConnection("biller.uy")
         payload = ''

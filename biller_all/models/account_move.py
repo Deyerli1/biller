@@ -4,6 +4,7 @@ from odoo import models, fields
 from odoo.exceptions import UserError, ValidationError
 from datetime import datetime
 import json
+import re
 
 ID_TYPE = {
     'rut' : [2, 0],
@@ -23,6 +24,7 @@ CODES = {
 
 REVERSE_CODES = {
     111 : "in_invoice",
+    112 : "in_refund",
 }
 
 class AccountMove(models.Model):
@@ -43,7 +45,7 @@ class AccountMove(models.Model):
             payload = json.dumps(self.get_payload())
             response, data = biller_proxy.post_document(payload,'cfe_sent')
             if response.code != 201:
-                raise ValidationError("Hubo problemas al enviar la factura")
+                raise ValidationError("Hubo problemas al enviar la factura. Estos son {}".format(data.decode()))
             else:
                 self.update({
                     'name' : eval(data.decode())["serie"] + "-" + str(eval(data.decode())["numero"]),
@@ -159,8 +161,9 @@ class AccountMove(models.Model):
         else:
             taxes = self.env['account.tax'].search([('amount', '=', 22), ("type_tax_use", "=", "purchase",)], limit=1).id
 
-        # Get lines by looking up the PDF of the document and parsing it
-        lines_values_list = self.get_received_lines(vals["id"], taxes)
+        # Get lines by looking up the PDF of the document and parsing it also get it's original reversed document if it has it
+        
+        lines_values_list, reversed_move_id = self.get_received_lines(vals["id"], taxes, vals["esNotaAjuste"])
         lines = []
         # Generate CREATE triplet
         for line_values in lines_values_list:
@@ -168,7 +171,7 @@ class AccountMove(models.Model):
             lines.append(line)
         
         # Return created account.move
-        return self.with_context(check_move_validity=False).create({
+        move_id = self.with_context(check_move_validity=False).create({
             "biller_id" : vals["id"],
             "name" : vals["serie"] + "-" + str(vals["numero"]),
             "amount_total" : float(vals["total"]),
@@ -178,6 +181,9 @@ class AccountMove(models.Model):
             "partner_id" : partner_id,
             "invoice_line_ids" : lines
         })
+        if reversed_move_id > -1:
+            move_id.reversed_entry_id = reversed_move_id
+        return move_id
         
     
     def get_partner(self, vals):
@@ -197,7 +203,7 @@ class AccountMove(models.Model):
                 'country_id' : self.env['res.country'].search([("code", "=",  vals["sucursal"]["pais"])]).id
                 })
 
-    def get_received_lines(self, biller_id, tax):
+    def get_received_lines(self, biller_id, tax, esNotaAjuste):
         biller_proxy = self.env['biller.record']
         _, pdf_blocks = biller_proxy.get_biller_pdf(biller_id, self.env.company.access_token)
         item_blocks = pdf_blocks[10:]
@@ -220,7 +226,7 @@ class AccountMove(models.Model):
                     line = {
                         'product_id' : product,
                         'price_unit' : price_unit,
-                        'tax_ids' : [(4, tax, 0)]
+                        #'tax_ids' : [(4, tax, 0)]
                     }
                     lines.append(line)
                 elif len(elements) == 5:
@@ -232,13 +238,18 @@ class AccountMove(models.Model):
                         'product_id' : product,
                         'quantity' : quantity,
                         'price_unit' : price_unit,
-                        'tax_ids' : [(4, tax, 0)]
+                        #'tax_ids' : [(4, tax, 0)]
 
                     }
                     lines.append(line)
             except:
                 continue
-        return lines
+            move_id = -1
+            if esNotaAjuste:
+                  for item in item_blocks:
+                    move_id = self.get_reversed_move_id(item[4])
+                    break
+        return lines, move_id
                 
 
     def get_product(self, name):
@@ -255,5 +266,53 @@ class AccountMove(models.Model):
             'detailed_type': "consu",
             'supplier_taxes_id': [(6, 0, tax_ids)]
         })
+
+    def get_reversed_move_id(self, string):
+        if string[:9] == "e-Factura" or string[:8] == "e-Ticket":
+            name = re.search("[A-Z]-[0-9]+", string)
+            if name:
+                return self.search([("name", "=", name.group())])
+    
+    def create_received_dgi(self, vals):
+        # This will create moves based on the DGI responses which have far fewer values to work with.
+        name = vals["serie"]+ "-" + vals["numero"]
+        if self.search([("name", "=", name)]):
+            return
+        partner_id = self.get_partner_by_rut(vals["rut_emisor"])
+        
+        # Return created account.move
+        move_id = self.with_context(check_move_validity=False).create({
+            "name" : vals["serie"] + "-" + str(vals["numero"]),
+            "invoice_date" : datetime.strptime(vals["fecha"], '%Y-%m-%d').date(),
+            "state" : "draft", 
+            "move_type" : REVERSE_CODES[vals["tipo_comprobante"]],
+            "partner_id" : partner_id,
+            "invoice_line_ids": [
+                    (
+                        0,
+                        None,
+                        {
+                            "product_id": self.env.company.biller_default_product_id,
+                            "quantity": 1.0,
+                            "price_unit": vals["total_neto"],
+                            "name": "Default product",
+                        },
+                    )
+                ],
+        })
+        return move_id
+
+    def get_partner_by_rut(self, vals):
+        partner = self.env['res.partner'].search([
+            ("fiscal_document_type", "=", "rut"),
+            ("vat", "=", vals["rut_emisor"]),
+            ])
+        if partner:
+            return partner
+        else:
+            return self.env['res.partner'].create({
+                'vat' : vals["rut_emisor"],
+                'fiscal_document_type' : "rut",
+                })
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
