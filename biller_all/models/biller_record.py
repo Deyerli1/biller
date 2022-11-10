@@ -70,7 +70,7 @@ class BillerRecord(models.Model):
 
     def get_received_documents(self, date_from, date_to):
         date_from = date_from.strftime("%Y-%m-%d") if date_from else fields.Date.today().strftime("%Y-%m-%d")
-        date_to = date_to.strftime("%Y-%m-%d") if date_to else (fields.Date.today() - relativedelta(days=1)).strftime("%Y-%m-%d")
+        date_to = date_to.strftime("%Y-%m-%d") if date_to else (fields.Date.today()).strftime("%Y-%m-%d")
         request_string = "/v2/comprobantes/obtener?recibidos=1&desde={}%2000:00:00&hasta={}%2023:59:59".format(date_from, date_to)
         payload = ''
         res = self.get_response("GET", request_string, payload)
@@ -85,8 +85,8 @@ class BillerRecord(models.Model):
         return data
 
     def get_received_documents_dgi(self, date_from, date_to):
-        date_from = date_from.strftime("%Y-%m-%d") if date_from else fields.Date.today().strftime("%Y-%m-%d")
-        date_to = date_to.strftime("%Y-%m-%d") if date_to else (fields.Date.today() - relativedelta(days=1)).strftime("%Y-%m-%d")
+        date_from = date_from.strftime("%Y-%m-%d") if date_from else (fields.Date.today()).strftime("%Y-%m-%d")
+        date_to = date_to.strftime("%Y-%m-%d") if date_to else (fields.Date.today()).strftime("%Y-%m-%d")
         request_string = "/v2/comprobantes/recibidos/obtener?fecha_desde={}&fecha_hasta={}".format(date_from, date_to)
         payload = ''
         res = self.get_response("GET", request_string, payload)

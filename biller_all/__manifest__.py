@@ -28,6 +28,7 @@
         'views/res_config_settings_views.xml',
         'views/res_partner_views.xml',
         'views/account_fiscal_position_views.xml',
+        'data/received_docs_cron.xml',
     ],
 
     'installable': True,

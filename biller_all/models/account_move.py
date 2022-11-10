@@ -208,7 +208,7 @@ class AccountMove(models.Model):
         _, pdf_blocks = biller_proxy.get_biller_pdf(biller_id, self.env.company.access_token)
         item_blocks = pdf_blocks[10:]
         lines = []
-        for item in item_blocks:
+        for j, item in enumerate(item_blocks):
             try:
                 elements = item[4].split("\n")
                 if "Subtotal" in elements[1]:
@@ -218,10 +218,20 @@ class AccountMove(models.Model):
                     elements[0] += " " + elements[i]
                     elements.pop(i)
                     i+=1
-                product = self.get_product(elements[0])
-
-                if len(elements) == 3:
-                    price_unit = elements[1].replace(".","")
+                product_name = re.search("[a-zA-Z]+",item[4])
+                price_unit = 0
+                quantity = 0
+                if product_name:
+                    product = self.get_product(elements[0])
+                    block_numbers = re.findall("(?=\n([0-9]*\.?[0-9]+\,?[0-9]*)\n)",item[4])
+                    if len(block_numbers) > 1:
+                        price_unit = block_numbers[0]
+                        quantity = block_numbers[1]
+                        quantity = quantity.replace(".","")
+                        quantity =  float(quantity.replace(",","."))
+                    else:
+                        price_unit = block_numbers[0]
+                    price_unit = price_unit.replace(".","")
                     price_unit = float(price_unit.replace(",","."))
                     line = {
                         'product_id' : product,
@@ -229,11 +239,19 @@ class AccountMove(models.Model):
                         #'tax_ids' : [(4, tax, 0)]
                     }
                     lines.append(line)
-                elif len(elements) == 5:
-                    price_unit = elements[1].replace(".","")
+                else:
+                    block_numbers = re.findall("([0-9]*\.?[0-9]+\,?[0-9]*)\n",item[4])
+                    if len(block_numbers) > 1:
+                        price_unit = block_numbers[0]
+                        quantity = block_numbers[1]
+                        quantity = quantity.replace(".","")
+                        quantity =  float(quantity.replace(",","."))
+                    else:
+                        price_unit = block_numbers[0]
+                    product_name = item_blocks[j+1][4].split("\n")[0]
+                    item_blocks.pop(j+1)
+                    price_unit = price_unit.replace(".","")
                     price_unit = float(price_unit.replace(",","."))
-                    quantity = elements[2].replace(".","")
-                    quantity =  float(quantity.replace(",","."))
                     line = {
                         'product_id' : product,
                         'quantity' : quantity,
@@ -275,17 +293,17 @@ class AccountMove(models.Model):
     
     def create_received_dgi(self, vals):
         # This will create moves based on the DGI responses which have far fewer values to work with.
-        name = vals["serie"]+ "-" + vals["numero"]
+        name = vals["serie"]+ "-" + str(vals["numero"])
         if self.search([("name", "=", name)]):
             return
-        partner_id = self.get_partner_by_rut(vals["rut_emisor"])
+        partner_id = self.get_partner_by_rut(float(vals["rut_emisor"]))
         
         # Return created account.move
         move_id = self.with_context(check_move_validity=False).create({
             "name" : vals["serie"] + "-" + str(vals["numero"]),
             "invoice_date" : datetime.strptime(vals["fecha"], '%Y-%m-%d').date(),
             "state" : "draft", 
-            "move_type" : REVERSE_CODES[vals["tipo_comprobante"]],
+            "move_type" : REVERSE_CODES[vals["tipo"]],
             "partner_id" : partner_id,
             "invoice_line_ids": [
                     (
@@ -302,16 +320,17 @@ class AccountMove(models.Model):
         })
         return move_id
 
-    def get_partner_by_rut(self, vals):
+    def get_partner_by_rut(self, rut):
         partner = self.env['res.partner'].search([
             ("fiscal_document_type", "=", "rut"),
-            ("vat", "=", vals["rut_emisor"]),
+            ("vat", "=", rut),
             ])
         if partner:
             return partner
         else:
             return self.env['res.partner'].create({
-                'vat' : vals["rut_emisor"],
+                'name' : "PLACEHOLDER NAME",
+                'vat' : rut,
                 'fiscal_document_type' : "rut",
                 })
 
