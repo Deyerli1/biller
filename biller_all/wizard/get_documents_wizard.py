@@ -1,7 +1,4 @@
 # -*- encoding: utf-8 -*-
-
-from asyncore import dispatcher
-from xml.dom import ValidationErr
 from odoo import models, fields
 import json
 from datetime import datetime
